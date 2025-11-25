@@ -111,7 +111,9 @@ ui <- fluidPage(
                 tabPanel("About",
                          h4("About this App"),
                          p("This Shiny app allows visualization, modeling, and forecasting of Australian wine sales data."),
-                         p("Select wine varietals, adjust the date range, training interval, and forecast horizon to explore trends and predictions.")
+                         p("This data contains six various wine types: Rose, Sweet white, Red, Fortified, Dry white, and Sparkling."),
+                         p("The models chosen are auto-fitting ARIMA, ETS, and TSLM. These models were chosen for their simplicity and effectiveness for forecasting time series data."),
+                         p("To reproduce the figures shown the full data set will need to plotted alongside with the forecasted values produced by the models. Ideally, using the autoplot() function to reproduce the 80% and 95% confidence intervals.")
                 )
             )
         )
