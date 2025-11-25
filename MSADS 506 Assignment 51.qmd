@@ -19,7 +19,7 @@ library(here)
 ### Load data
 
 ```{r}
-aus_wine <- read_csv(here::here("data/AustralianWines.csv"), na = "*",
+aus_wine <- read_csv(("data/AustralianWines.csv"), na = "*",
                      col_types = cols(Rose = col_number()),
                      show_col_types = FALSE) |> 
     fill(Rose, .direction = "down") |> 

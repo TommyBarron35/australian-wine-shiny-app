@@ -10,7 +10,7 @@ library(here)
 # Load and prepare data
 # -------------------------
 aus_wine <- read_csv(
-    here::here("data/AustralianWines.csv"), na = "*",
+    ("data/AustralianWines.csv"), na = "*",
     col_types = cols(Rose = col_number()),
     show_col_types = FALSE
 ) |> 
