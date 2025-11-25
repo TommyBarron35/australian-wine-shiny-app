@@ -33,7 +33,7 @@ wine_tsibble <- aus_wine_long |>
 # Convert Month to Date for sliderInput
 min_date <- as.Date(min(wine_tsibble$Month))
 max_date <- as.Date(max(wine_tsibble$Month))
-default_train_end <- as.Date("1993-12-01") # default training data end
+default_train_end <- as.Date("1993-12-01")
 
 # -------------------------
 # UI
@@ -47,18 +47,19 @@ ui <- fluidPage(
                 inputId = "wine_select",
                 label = "Select Wine Varietals",
                 choices = c("Rose", "Sweet white", "Red", "Fortified", "Dry white", "sparkling"),
-                selected = c("Rose", "Red"),   # default to two wines
+                selected = c("Rose", "Red"),   # default two wines
                 multiple = TRUE,
                 options = list(`actions-box` = TRUE)
             ),
             
-            dateRangeInput(
+            # ⭐ NEW TWO-SIDED DATE SLIDER ⭐
+            sliderInput(
                 inputId = "date_range",
                 label = "Select Date Range (for visualization)",
-                start = as.Date("1989-01-01"),
-                end = max_date,
                 min = min_date,
-                max = max_date
+                max = max_date,
+                value = c(as.Date("1989-01-01"), max_date),
+                timeFormat = "%Y-%m"
             ),
             
             numericInput(
@@ -69,7 +70,6 @@ ui <- fluidPage(
                 max = 60
             ),
             
-            # Checkbox to select models
             checkboxGroupInput(
                 inputId = "models_select",
                 label = "Select Models to Display",
@@ -77,7 +77,6 @@ ui <- fluidPage(
                 selected = c("TSLM", "ETS", "ARIMA")
             ),
             
-            # Slider to select training interval
             sliderInput(
                 inputId = "train_end",
                 label = "Training Data End Month:",
@@ -87,7 +86,6 @@ ui <- fluidPage(
                 timeFormat = "%Y-%m"
             ),
             
-            # Checkbox for free/fixed y-axis
             checkboxInput(
                 inputId = "free_y",
                 label = "Use Free Y-axis Scales in Graphs",
@@ -100,6 +98,7 @@ ui <- fluidPage(
                 tabPanel("Overview",
                          plotOutput("overviewPlot")
                 ),
+                
                 tabPanel("Modeling and Forecasts",
                          uiOutput("model_warning"),
                          plotOutput("forecastPlot"),
@@ -108,6 +107,7 @@ ui <- fluidPage(
                          h4("Forecast Accuracy"),
                          gt_output("forecastTable")
                 ),
+                
                 tabPanel("About",
                          h4("About this App"),
                          p("This Shiny app allows visualization, modeling, and forecasting of Australian wine sales data."),
@@ -123,7 +123,7 @@ ui <- fluidPage(
 # -------------------------
 server <- function(input, output, session) {
     
-    # Reactive filtered dataset for visualization only
+    # Filtered data for visualization
     filtered_data <- reactive({
         req(input$wine_select, input$date_range)
         wine_tsibble |>
@@ -134,10 +134,10 @@ server <- function(input, output, session) {
             )
     })
     
-    # Reactive training data based on slider
+    # Training data
     train_data <- reactive({
         req(input$wine_select, input$train_end)
-        train_end_ym <- yearmonth(input$train_end) # convert Date to yearmonth
+        train_end_ym <- yearmonth(input$train_end)
         wine_tsibble |>
             filter(
                 Varietal %in% input$wine_select,
@@ -145,17 +145,17 @@ server <- function(input, output, session) {
             )
     })
     
-    # Warning if training data is empty
+    # Warning if no training data
     output$model_warning <- renderUI({
         if(nrow(train_data()) == 0) {
             tags$div(
                 style = "color:red; font-weight:bold;",
-                "Warning: No data available for modeling. Please check your wine selection or training interval."
+                "Warning: No data available for modeling. Adjust your selections."
             )
         }
     })
     
-    # Reactive model fitting
+    # Fit models
     wine_models <- reactive({
         df <- train_data()
         req(df)
@@ -169,13 +169,10 @@ server <- function(input, output, session) {
             )
     })
     
-    # Reactive forecast
+    # Forecasts
     wine_forecast <- reactive({
         req(wine_models())
-        if(is.null(wine_models())) return(NULL)
-        
-        wine_models() |>
-            forecast(h = paste(input$forecast_horizon, "months"))
+        wine_models() |> forecast(h = paste(input$forecast_horizon, "months"))
     })
     
     # -------------------------
@@ -184,43 +181,38 @@ server <- function(input, output, session) {
     output$overviewPlot <- renderPlot({
         req(filtered_data())
         
-        scales_option <- ifelse(input$free_y, "free_y", "fixed")
+        scales_opt <- ifelse(input$free_y, "free_y", "fixed")
         
         filtered_data() |>
             autoplot(Sales) +
             labs(y = "Sales", title = "Wine Sales Overview") +
-            facet_wrap(~Varietal, ncol = 3, scales = scales_option) +
+            facet_wrap(~Varietal, ncol = 3, scales = scales_opt) +
             theme_minimal()
     })
     
     # -------------------------
-    # Forecast plot with autoplot + model selection
+    # Forecast plot
     # -------------------------
     output$forecastPlot <- renderPlot({
         req(train_data(), wine_forecast())
         
-        scales_option <- ifelse(input$free_y, "free_y", "fixed")
+        scales_opt <- ifelse(input$free_y, "free_y", "fixed")
         
-        fc <- wine_forecast() |> filter(Varietal %in% input$wine_select)
-        actual <- train_data() |> filter(Varietal %in% input$wine_select)
+        fc <- wine_forecast() |> filter(.model %in% input$models_select)
+        actual <- train_data()
+        
+        # Apply visualization date filter
+        start <- yearmonth(input$date_range[1])
+        end <- yearmonth(input$date_range[2])
+        actual <- actual |> filter(Month >= start, Month <= end)
+        fc <- fc |> filter(Month >= start, Month <= end)
         
         if(nrow(fc) == 0 || nrow(actual) == 0) return(NULL)
         
-        # Filter forecasts by selected models
-        fc <- fc |> filter(.model %in% input$models_select)
-        
-        # Filter to visualization date range
-        start_date <- yearmonth(input$date_range[1])
-        end_date <- yearmonth(input$date_range[2])
-        
-        actual <- actual |> filter(Month >= start_date, Month <= end_date)
-        fc <- fc |> filter(Month >= start_date, Month <= end_date)
-        
-        # Autoplot with confidence intervals
         autoplot(actual, Sales) +
             autolayer(fc, .mean, series = ".model") +
-            labs(title = "Forecasts vs Actuals with Confidence Intervals", y = "Sales") +
-            facet_wrap(~Varietal, ncol = 3, scales = scales_option) +
+            labs(title = "Forecasts with Confidence Intervals", y = "Sales") +
+            facet_wrap(~Varietal, ncol = 3, scales = scales_opt) +
             theme_minimal()
     })
     
@@ -230,7 +222,7 @@ server <- function(input, output, session) {
     output$trainAcc <- render_gt({
         req(wine_models())
         models <- wine_models()
-        if(is.null(models) || nrow(train_data()) == 0) return(gt())
+        if(is.null(models)) return(gt())
         
         models |>
             accuracy() |>
@@ -242,12 +234,11 @@ server <- function(input, output, session) {
     })
     
     # -------------------------
-    # Forecast table
+    # Forecast accuracy table
     # -------------------------
     output$forecastTable <- render_gt({
         req(wine_forecast())
         fc <- wine_forecast()
-        if(nrow(fc) == 0) return(gt())
         
         fc |>
             as_tibble() |>
@@ -257,7 +248,6 @@ server <- function(input, output, session) {
             gt() |>
             fmt_number(decimals = 0)
     })
-    
 }
 
 # -------------------------
