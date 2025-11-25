@@ -4219,14 +4219,14 @@
     "assignment/images/paste-1.png": {
       "checksum": "be40ab4c10cfa982098135004a7c0fc3"
     },
+    "assignment/MSADS 506 Assignment 51.qmd": {
+      "checksum": "88d6d3c513a64ef83afb71f2ef888053"
+    },
     "assignment/Week5_Submission_Template.pdf": {
       "checksum": "8fb0c36eb97fdab94df429f94cdae1ae"
     },
     "assignment/Week5_Submission_Template.qmd": {
       "checksum": "9ee7e4bdb532a57c13c8e6accdd33f30"
-    },
-    "data/AustralianWines.csv": {
-      "checksum": "797350e055f2d561f93ad55acc3a512f"
     },
     "labs/agentic-coding-shiny-positron/app.R": {
       "checksum": "884d7cd1d1d88da3fceefd9aa44a2486"
@@ -4247,10 +4247,13 @@
       "checksum": "9028a633689ea1b3c6629fb76ff14703"
     },
     "Module-5-Assignment/app.R": {
-      "checksum": "a8da20bb0dd3ad40002e092e1ddb0d3f"
+      "checksum": "1217d57eef7df45a8e2e0dfc61ecce0f"
+    },
+    "Module-5-Assignment/data/AustralianWines.csv": {
+      "checksum": "797350e055f2d561f93ad55acc3a512f"
     },
     "Module-5-Assignment/MSADS 506 Assignment 51.qmd": {
-      "checksum": "88d6d3c513a64ef83afb71f2ef888053"
+      "checksum": "e74a24e9ea6efe63e0fb179eba77c246"
     },
     "Module-5-Assignment/posit_connect_setup.R": {
       "checksum": "2c4b2b760696312a0d294f7ed1ca0454"
