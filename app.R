@@ -85,6 +85,13 @@ ui <- fluidPage(
                 max = max_date,
                 value = default_train_end,
                 timeFormat = "%Y-%m"
+            ),
+            
+            # Checkbox for free/fixed y-axis
+            checkboxInput(
+                inputId = "free_y",
+                label = "Use Free Y-axis Scales in Graphs",
+                value = TRUE
             )
         ),
         
@@ -98,15 +105,13 @@ ui <- fluidPage(
                          plotOutput("forecastPlot"),
                          h4("Metrics for Training Data"),
                          gt_output("trainAcc"),
-                         h4("Forecasted Sales"),
+                         h4("Forecast Accuracy"),
                          gt_output("forecastTable")
                 ),
                 tabPanel("About",
                          h4("About this App"),
                          p("This Shiny app allows visualization, modeling, and forecasting of Australian wine sales data."),
-                         p("This data contains six various wine types: Rose, Sweet white, Red, Fortified, Dry white, and Sparkling."),
-                         p("The models chosen are auto-fitting ARIMA, ETS, and TSLM. These models were chosen for their simplicity and effectiveness for forecasting time series data."),
-                         p("To reproduce the figures shown the full data set will need to plotted alongside with the forecasted values produced by the models. Ideally, using the autoplot() function to reproduce the 80% and 95% confidence intervals.")
+                         p("Select wine varietals, adjust the date range, training interval, and forecast horizon to explore trends and predictions.")
                 )
             )
         )
@@ -179,10 +184,12 @@ server <- function(input, output, session) {
     output$overviewPlot <- renderPlot({
         req(filtered_data())
         
+        scales_option <- ifelse(input$free_y, "free_y", "fixed")
+        
         filtered_data() |>
             autoplot(Sales) +
             labs(y = "Sales", title = "Wine Sales Overview") +
-            facet_wrap(~Varietal, ncol = 3, scales = "free_y") +
+            facet_wrap(~Varietal, ncol = 3, scales = scales_option) +
             theme_minimal()
     })
     
@@ -191,6 +198,8 @@ server <- function(input, output, session) {
     # -------------------------
     output$forecastPlot <- renderPlot({
         req(train_data(), wine_forecast())
+        
+        scales_option <- ifelse(input$free_y, "free_y", "fixed")
         
         fc <- wine_forecast() |> filter(Varietal %in% input$wine_select)
         actual <- train_data() |> filter(Varietal %in% input$wine_select)
@@ -211,7 +220,7 @@ server <- function(input, output, session) {
         autoplot(actual, Sales) +
             autolayer(fc, .mean, series = ".model") +
             labs(title = "Forecasts vs Actuals with Confidence Intervals", y = "Sales") +
-            facet_wrap(~Varietal, ncol = 3, scales = "free_y") +
+            facet_wrap(~Varietal, ncol = 3, scales = scales_option) +
             theme_minimal()
     })
     
