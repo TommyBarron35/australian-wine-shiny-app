@@ -1,0 +1,126 @@
+---
+title: "MSADS Assignment 5.1"
+format: html
+runtime: shiny
+---
+
+```{r}
+library(tidyverse)
+library(fpp3)
+library(gt)
+library(lubridate)
+library(shiny)
+library(shinyWidgets) # For sliderTextInput
+library(here)
+```
+
+## Visualization
+
+### Load data
+
+```{r}
+aus_wine <- read_csv(here::here("data/AustralianWines.csv"), na = "*",
+                     col_types = cols(Rose = col_number()),
+                     show_col_types = FALSE) |> 
+    fill(Rose, .direction = "down") |> 
+    mutate(Month = mdy(str_replace(Month, '-', '-01-')) |> yearmonth())
+
+aus_wine_long <- aus_wine |>
+    pivot_longer(
+        cols = -c(Month),
+        names_to = "Varietal",
+        values_to = "Sales"
+    )
+
+wine_tsibble <- aus_wine_long |>
+    as_tsibble(
+        index = Month,
+        key = Varietal
+    )
+```
+
+### Data split
+
+```{r}
+wine_trn <- wine_tsibble |>
+    filter_index(. ~ '1993 Dec')
+
+wine_val <- wine_tsibble |>
+    filter_index('1994 Jan' ~ .)
+```
+
+### Data visualization
+
+```{r}
+wine_tsibble |>
+    autoplot(Sales) +
+    geom_vline(xintercept = yearmonth('1993 Dec'), color = "red", linetype = "dashed") +
+    labs(y = "Sales", title = "Wine data") +
+    facet_wrap(~Varietal, ncol = 3, scales = "free_y") +
+    theme_minimal()
+```
+
+## Model Building
+
+### Model fitting
+
+```{r}
+wine_fit <- wine_trn |>
+    model(
+        TSLM = TSLM(Sales ~ trend() + season()),
+        ETS = ETS(Sales),
+        ARIMA = ARIMA(Sales)
+    )
+
+wine_fit
+```
+
+### Training accuracy
+
+```{r}
+wine_fit |>
+    accuracy() |>
+    select(Varietal, .model, RMSE, MAE, MAPE) |>
+    arrange(RMSE) |>
+    gt() |>
+    fmt_number(decimals = 2)
+```
+
+### Forecast accuracy
+
+```{r}
+wine_fc <- wine_fit |>
+    forecast(h = "1 year")
+
+wine_fc |>
+    accuracy(wine_tsibble) |>
+    select(Varietal, .model, RMSE, MAE, MAPE) |>
+    arrange(.model, RMSE) |>
+    gt() |>
+    fmt_number(decimals = 2)
+```
+
+## Forecast
+
+### Forecast visualization
+
+```{r}
+trn_start <- yearmonth('1993 Dec') - 12
+wine_fc |>
+    autoplot(wine_tsibble |> filter(Month >= trn_start)) +
+    geom_vline(xintercept = yearmonth('1993 Dec'), color = "red", linetype = "dashed") +
+    labs(y = "Sales", title = "Australian Wine Data Forecasts") +
+    facet_wrap(Varietal ~ .model, ncol = 3, scales = "free_y") +
+    theme_minimal()
+```
+
+### Forecast table
+
+```{r}
+wine_fc |>
+    as_tibble() |>
+    select(Varietal, .model, Month, .mean) |>
+    pivot_wider(names_from = Month, values_from = .mean) |>
+    gt() |>
+    fmt_number(decimals = 0)
+```
